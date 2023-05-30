@@ -105,3 +105,63 @@ SELECT @NUMNOTAS = COUNT(*) FROM NOTAS_FISCAIS WHERE DATA_VENDA = @DATA_VENDA
 PRINT @NUMNOTAS -- 74
 ```
 
+## 3. CONTROLE DE FLUXO - IF
+A linguagem T-SQL, ao contrário do SQL ANSI padrão, possui formas de lidar com situações em que deve haver controle de fluxo do programa. No T-SQL, assim como em inúmeras linguagens de programação, utiliza-se o comando **IF-ELSE**.
+Sua sintaxe é:
+```sql
+IF <Expressão>
+    <comandos SQL/controle de bloco>
+ELSE
+    <comandos SQL/controle de bloco>
+```
+
+* A expressão a ser passada no If, também chamada de *expressão lógica*, retorna verdadeiro ou falso. Então, se a expressão for verdadeira, os comandos dentro do If serão executados; se não, os comandos dentro do Else que serão.
+
+* Controle de bloco nada mais é que alguns comandos SQL encadeados e limitados por uma instrução `BEGIN` e `END`. Mesmo que haja somente um comando dentro do If, por vezes é uma boa prática limitá-lo com esses blocos.
+
+Para exemplificar sua sintaxe, tenhamos o seguinte caso:
+```sql
+if 4^2 = 4 * 2
+    -- executará este comando, pois 16 não é igual a 8.
+	print 'vdd!'
+else
+	print 'falso'
+```
+
+Se quisermos verificar se daqui a *x* número de dias será dia de semana ou fim de semana, podemos fazer:
+```sql
+DECLARE @DIA_SEMANA VARCHAR(20), @NUMDIAS INT
+
+SET @NUMDIAS = 999
+
+SET @DIA_SEMANA = DATENAME (WEEKDAY, DATEADD(DAY, @NUMDIAS, GETDATE()))
+
+PRINT @DIA_SEMANA -- sábado
+
+IF @DIA_SEMANA = 'Sábado' OR @DIA_SEMANA = 'Domingo'
+	PRINT 'fim de semana!'
+ELSE
+	PRINT 'dia normal'
+```
+
+Em outro caso, verifiquemos se o limite de crédito dos clientes do bairro de Jardins ultrapassa o valor de 90 mil:
+```sql
+DECLARE @bairro VARCHAR(50);
+DECLARE @limiteAtual FLOAT;
+DECLARE @limiteMax FLOAT;
+
+SET @bairro = 'jardins';
+SET @limiteMax = 90000;
+
+SELECT @limiteAtual = sum(limite_de_credito) FROM TABELA_DE_CLIENTES WHERE bairro = @bairro
+-- comparar o maximo com o atual
+IF @limiteAtual > @limiteMax
+	BEGIN
+        -- executará esse.
+		PRINT 'passou do limite'
+	END
+ELSE
+	BEGIN
+		PRINT 'está dentro do limite'
+	END
+```
