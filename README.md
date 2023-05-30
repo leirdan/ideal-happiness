@@ -165,3 +165,97 @@ ELSE
 		PRINT 'está dentro do limite'
 	END
 ```
+
+## 4. CONTROLE DE FLUXO - WHILE
+O comando **while** é responsável pelos laços de repetição do T-SQL, que nada mais são que trechos de código SQL que podem ser executados repetidas vezes. Ele expressa uma condição: *se* a condição for verdadeira, tudo dentro do `WHILE` será executado; se não, não será executado.
+
+Sua sintaxe é:
+```sql
+WHILE <Expressão Lógica>
+    <comandos SQL/controle de bloco>
+        <BREAK ou CONTINUE>
+```
+* O comando `BREAK` faz com que o loop se encerre, ou seja, ele força o fim do loop; em contrapartida, o comando `CONTINUE` é responsável por reiniciar o loop, até que a condição lógica seja verdadeira.
+
+Vejamos um exemplo simples: contar todos os números de 1 até 1000. 
+```sql
+DECLARE @min int, @max int;
+SET @min = 1;
+SET @max = 1000;
+
+PRINT 'Início'
+WHILE @min <= @max
+	BEGIN
+		PRINT @min
+		SET @min = @min + 1
+	CONTINUE
+	END
+PRINT 'Fim'
+```
+
+Em um outro exemplo, vamos verificar o número total de vendas feitas a cada dia do intervalo 01/01/2017 e 30/01/2017:
+```sql
+DECLARE @dateMin date, @dateMax date, @numNotas int
+SET @dateMin = '2017-01-01'
+SET @dateMax = '2017-01-30'
+
+WHILE @dateMin <= @dateMax	
+	BEGIN
+		SELECT @numNotas = COUNT(*) FROM NOTAS_FISCAIS WHERE DATA_VENDA = @dateMin
+		PRINT CONVERT(VARCHAR, @dateMin) + ' ---> ' + CONVERT(VARCHAR, @numNotas) + ' notas!'
+		SELECT @dateMin = (DATEADD(DAY, 1, @dateMin))
+		CONTINUE
+	END
+```
+
+Mas e se quisermos verificar somente os 10 primeiros registros dessa consulta? Podemos fazer o seguinte com o while:
+```sql
+DECLARE @dateMin date, @dateMax date, @numNotas int, @numLinhas int, @numMaxLinhas int
+SET @dateMin = '2017-01-01'
+SET @dateMax = '2017-01-30'
+SET @numMaxLinhas = 10
+SET @numLinhas = 0
+
+WHILE @dateMin <= @dateMax	
+	BEGIN
+		SELECT @numNotas = COUNT(*) FROM NOTAS_FISCAIS WHERE DATA_VENDA = @dateMin
+		PRINT CONVERT(VARCHAR, @dateMin) + ' ---> ' + CONVERT(VARCHAR, @numNotas) + ' notas!'
+		SELECT @dateMin = (DATEADD(DAY, 1, @dateMin))
+		SET @numLinhas = @numLinhas + 1
+		IF @numLinhas = @numMaxLinhas
+			BEGIN
+				PRINT 'Foram impressas 10 linhas.'
+				BREAK
+			END
+		CONTINUE
+	END
+```
+
+### 4.1 Inserindo dados em loop
+Presuma que queremos verificar cada nota fiscal por seu número e decidir se essa nota existe ou não. Para isso, vamos criar uma tabela adicional chamada *STATUS_NOTA* com dois atributos: 
+```sql
+CREATE TABLE STATUS_NOTA (
+	NUMERO INT, -- número da nota
+	STATUS VARCHAR(30)
+);
+```
+Vamos agora verificar alguns registros. Primeiro, devemos determinar o intervalo de números a ser verificado e um número que será usado para teste. Depois, executaremos o loop com uma condição dentro e inserções. Ao final, serão inseridos novos 99.999 registros na tabela *STATUS_NOTA*.
+```sql
+DECLARE @min INT, @max INT, @teste int
+SET @min = 1
+SET @max = 100000
+
+DELETE FROM STATUS_NOTA -- exclusão necessária para não duplicar os valores a cada execução
+
+WHILE @min < @max
+	BEGIN
+        -- essa variável terá valor 1 se existir um registro com o mesmo número do momento, ou 0 caso não exista.
+		SELECT @teste = count(*) FROM NOTAS_FISCAIS WHERE NUMERO = @min
+		IF @teste = 1
+			INSERT INTO STATUS_NOTA VALUES (@min, 'É nota fiscal')
+		ELSE
+			INSERT INTO STATUS_NOTA VALUES (@min, 'Não é nota fiscal')
+		SET @min = @min + 1
+		CONTINUE
+	END
+```
