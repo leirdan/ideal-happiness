@@ -259,3 +259,64 @@ WHILE @min < @max
 		CONTINUE
 	END
 ```
+
+## 5. TABELAS TEMPORÁRIAS
+
+Tabelas temporárias são tabelas que existem somente durante o tempo de consulta e execução, não ocupando espaço na memória do computador - mas ocupa na memória RAM. Uma diferença notável de uma tabela temporária para uma tradicional é que ela **não pode possuir chaves estrangeiras**. Existem alguns tipos específicos:
+* Tabelas que iniciam com `#`: são tabelas que está *somente* na própria instância de conexão local. Na prática, significa que em uma janela de script diferente da que está sendo executada a consulta esta tabela não será exibida.
+* Tabelas que iniciam com `##`: são tabelas que aparecem em *todas* as conexões do SQL Server, e só desaparecerão quando o serviço do SQL Server for interrompido.
+* Tabelas que iniciam com `@`: são tabelas que só existem *enquanto os comandos T-SQL estão sendo executados*. Ou seja, quando a mensagem *(Comandos concluídos com êxito)* for exibida a tabela será apagada. Elas são geralmente associadas às variáveis.
+
+Analisemos alguns casos:
+
+### 5.1 Tabela com "#"
+A princípio, vamos criar uma tabela temporária de linguagens de programação com 3 atributos: ID (com autoincremento), nome e ranking.
+```sql
+CREATE TABLE #LANGS (
+	ID INT IDENTITY(1,1),
+	NAME VARCHAR(30),
+	RANKING NVARCHAR(100)
+);
+```
+Em seguida, vamos inserir alguns valores:
+```sql
+INSERT INTO #LANGS VALUES 
+('C++', '1'), 
+('Lua', '3'), 
+('Bash Script', '2')
+```
+
+É possível notar que quando criamos uma nova conexão não é possível visualizar esta tabela de linguagens, visto que, como comentado, tabelas que iniciam com `#` só são visíveis e acessíveis dentro da própria conexão onde foram criadas.
+
+### 5.2 Tabelas com "##"
+
+Vamos criar novamente a mesma tabela:
+```sql
+CREATE TABLE ##LANGS (
+	ID INT IDENTITY(1,1),
+	NAME VARCHAR(30),
+	RANKING NVARCHAR(100)
+);
+```
+E inserimos novos valores:
+```sql
+INSERT INTO ##LANGS VALUES 
+('Python', '3'), 
+('Typescript', '1'), 
+('Java', '2')
+```
+
+Note que, se for criada uma nova janela de script, ainda será possível consultar os dados da tabela `##LANGS`, pois tabelas que iniciam com ## são acessíveis em todas as instâncias de conexão do SQL Server.
+
+### 5.3 Tabelas com "@"
+Criaremos a mesma tabela anterior, mas de outra forma:
+```sql
+DECLARE @LANGS TABLE (
+    ID INT IDENTITY(1,1), NAME VARCHAR(30), RANKING INT
+)
+
+INSERT INTO @LANGS VALUES ('Assembly', '2'), ('BASIC', '1')
+
+SELECT * FROM @LANGS
+```
+Como é possível notar, a tabela com @ é, na verdade, uma variável que armazena uma tabela. Por isso, fora do ambiente de execução, não é possível executar o `SELECT * FROM @LANGS`, já que a variável só é declarada no momento de execução.
