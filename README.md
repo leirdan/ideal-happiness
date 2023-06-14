@@ -17,7 +17,7 @@ Variáveis são, assim como nas demais linguagens de programação, um espaço n
 Para declarar uma variável no T-SQL, utilizamos `DECLARE @[Nome da Variável] [Tipo da Variável]`. Toda variável precisa ter um tipo, e uma característica do T-SQL é que qualquer tipo pode ser atribuido a uma variável, até mesmo o tipo *tabela*.
 
 Para atribuir um valor a uma variável, utilizamos `SET @[Nome da Variável] = [Valor]`.
-* Note que não é possível declarar e simultaneamente atribuir um valor a uma variável no T-SQL!
+> Podemos realizar uma declaração e atribuição de valor simultaneamente, como em: `DECLARE @NAME VARCHAR(100) = 'Behemoth'`
 
 Para imprimirmos uma variável, utilizamos o comando `PRINT @[Nome da Variável]`.
 
@@ -320,3 +320,80 @@ INSERT INTO @LANGS VALUES ('Assembly', '2'), ('BASIC', '1')
 SELECT * FROM @LANGS
 ```
 Como é possível notar, a tabela com @ é, na verdade, uma variável que armazena uma tabela. Por isso, fora do ambiente de execução, não é possível executar o `SELECT * FROM @LANGS`, já que a variável só é declarada no momento de execução.
+
+## 6. FUNÇÕES UDF
+Uma função é um conjunto de instruções T-SQL armazenadas no banco de dados com o objetivo de executar uma ação e retornar resultados (tabelas ou valores escalares, como strings, números, etc.). 
+Uma função UDF (*User-Defined-Function*) é, por sua vez, uma função desenvolvida pelo usuário, e não pré-definida pelo banco de dados.
+Para criar uma função UDF, existem algumas obrigações:
+- Uso de `begin` e `end` para delimitar o início e fim da função;
+- Uso do `return` para sempre retornar um valor ao fim;
+- Declaração dos *parâmetros* logo após a definição do nome da função.
+
+Sua sintaxe é:
+```sql
+CREATE FUNCTION <Nome da Função> (<Argumentos>)
+RETURNS <Tipo de Retorno>
+AS
+BEGIN
+	<Instruções T-SQL>
+	RETURN <Variável de retorno>
+END
+```
+
+Para exemplificar, vamos criar uma função que calcula o faturamento total de uma determinada nota fiscal e ver como podemos utilizar de maneira prática a nossa função:
+* Seja a consulta abaixo a base:
+```sql
+-- realiza a contagem da nota fiscal de número 120
+SELECT SUM(QUANTIDADE * [PREÇO]) FROM [dbo].[ITENS NOTAS FISCAIS] WHERE NUMERO = 120;
+``` 
+
+* Adaptando para uma função:
+```sql 
+CREATE FUNCTION CalcularFaturamento (@num AS INT)
+RETURNS FLOAT
+AS
+BEGIN
+	-- armazena o resultado da consulta em uma variável e a retorna
+	DECLARE @RESULTADO FLOAT
+	SELECT @RESULTADO = SUM(QUANTIDADE * [PREÇO]) FROM [dbo].[ITENS NOTAS FISCAIS] WHERE NUMERO = @num
+	RETURN @RESULTADO
+END
+```
+> Ao executar este comando, a função será guardada no banco de dados na pasta de "Programação".
+
+* Para executar:
+```sql
+SELECT NUMERO, dbo.CalcularFaturamento(NUMERO) FROM [dbo].[NOTAS FISCAIS]
+```
+> O que essa consulta faz é selecionar o número da nota fiscal, passar este número para a função como parâmetro e a executa, gerando uma tabela com duas colunas: uma com os números das notas fiscais e a outra com o faturamento de cada uma.
+
+Em outro exemplo, quero agora calcular o faturamento total do bairro que o usuário inserir. Para isso, temos a primeira consulta:
+
+```sql
+SELECT TOP 100 SUM(INF.QUANTIDADE * INF.[PREÇO]) FROM [dbo].[TABELA DE VENDEDORES] TV
+INNER JOIN [dbo].[NOTAS FISCAIS] NF
+	ON NF.MATRICULA = TV.MATRICULA
+INNER JOIN [dbo].[ITENS NOTAS FISCAIS] INF
+	ON INF.NUMERO = NF.NUMERO
+WHERE BAIRRO = 'Jardins'
+```
+
+Adaptando para função e adicionando um comportamento dinâmico:
+
+```sql
+CREATE FUNCTION FaturamentoBairro (@bairro AS VARCHAR(100))
+RETURNS FLOAT
+AS 
+BEGIN
+	DECLARE @TOTAL FLOAT
+	SELECT @TOTAL = SUM(INF.QUANTIDADE * INF.[PREÇO]) FROM [dbo].[TABELA DE VENDEDORES] TV
+		INNER JOIN [dbo].[NOTAS FISCAIS] NF
+			ON NF.MATRICULA = TV.MATRICULA
+		INNER JOIN [dbo].[ITENS NOTAS FISCAIS] INF
+			ON INF.NUMERO = NF.NUMERO
+		WHERE BAIRRO = @bairro
+	RETURN @TOTAL
+END
+```
+
+Executando o comando `SELECT dbo.FaturamentoBairro('Jardins')`, temos como retorno o número *46050253,8327901*, ou seja, o total de vendas naquele bairro durante todo o período.
