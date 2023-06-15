@@ -464,3 +464,33 @@ ELSE
 	PRINT 'Existe nota fiscal.'
 ```
 
+3. *Faça com que a função seja executada diversas vezes e percorra toda a tabela*
+
+```sql
+-- Criação de tabela temporária para visualização dos resultados
+DECLARE @STATUS_NOTAS TABLE ([NUMERO] INT, [STATUS] VARCHAR(200))
+DECLARE @MIN INT, @MAX INT, @RESULTADO INT, @CONDICAO INT
+
+-- Intervalo
+SET @MIN = 0
+SET @MAX = 100000
+
+WHILE @MIN <= @MAX
+BEGIN
+	SELECT @RESULTADO = [dbo].GerarNumAleatorio(@MIN, @MAX)
+	SELECT @CONDICAO = [dbo].IsNotaFiscal(@RESULTADO)
+	IF @CONDICAO > 0
+		BEGIN
+			INSERT INTO @STATUS_NOTAS VALUES (@RESULTADO, 'É nota fiscal.')
+		END
+	ELSE
+		BEGIN
+			INSERT INTO @STATUS_NOTAS VALUES (@RESULTADO, 'Não é nota fiscal.')
+		END
+	SET @MIN = @MIN + 1
+	CONTINUE
+END
+-- Como os números aleatórios podem se repetir, usamos a cláusula `distinct` para reduzir o número de linhas
+SELECT DISTINCT * FROM @STATUS_NOTAS ORDER BY NUMERO
+```
+
