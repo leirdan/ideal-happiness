@@ -375,7 +375,7 @@ INNER JOIN [dbo].[NOTAS FISCAIS] NF
 	ON NF.MATRICULA = TV.MATRICULA
 INNER JOIN [dbo].[ITENS NOTAS FISCAIS] INF
 	ON INF.NUMERO = NF.NUMERO
-WHERE BAIRRO = 'Jardins'
+WHERE BAIRRO = 'Jardins' -- exemplo de bairro
 ```
 
 Adaptando para função e adicionando um comportamento dinâmico:
@@ -397,3 +397,57 @@ END
 ```
 
 Executando o comando `SELECT dbo.FaturamentoBairro('Jardins')`, temos como retorno o número *46050253,8327901*, ou seja, o total de vendas naquele bairro durante todo o período.
+
+### 6.1 DESAFIO: Criar uma nova nota fiscal com um cliente, vendedor e produtos aleatórios!
+
+1. *Criar uma função que gere números aleatórios entre um limite mínimo e máximo*
+
+```sql
+-- Cálculo: (MAXIMO - MINIMO - 1) * NUMERO ALEATORIO ENTRE 0 E 1 + MINIMO = NÚMERO ENTRE MÍNIMO E MÁXIMO
+
+-- Mínimo = 100; Máximo = 1000
+SELECT ROUND((1000 - 100 - 1 ) * RAND() + 100, 0)
+
+-- A função rand() não pode ser "parcela de cálculo", por isso urge a necessidade de criar essa view para consumir seu resultado de fora
+CREATE VIEW VW_ALEATORIO AS SELECT RAND() AS ALEATORIO
+
+-- Transportando para função
+CREATE FUNCTION GerarNumAleatorio (@min AS INT, @max as INT)
+RETURNS INT
+AS
+BEGIN
+	DECLARE @NUM INT
+	DECLARE @ALEATORIO FLOAT
+	SELECT @ALEATORIO = ALEATORIO FROM VW_ALEATORIO
+	SET @NUM = ROUND((@max - @min - 1 ) * @ALEATORIO + @min, 0)
+	RETURN @NUM
+END
+
+-- Utilizando
+SELECT [dbo].GerarNumAleatorio(100, 1000)
+```
+
+2. *Criar uma função que percorra essa consulta e verifique se o número gerado corresponde a uma nota fiscal no banco de dados*
+
+```sql
+DECLARE @NUM_ALEATORIO INT, @NOTA INT
+SET @NUM_ALEATORIO = [dbo].GerarNumAleatorio(1, 1000)
+SELECT @NOTA = COUNT(*) FROM [dbo].[NOTAS FISCAIS] WHERE NUMERO = @NUM_ALEATORIO
+IF @NOTA = 0
+	BEGIN
+		PRINT CONCAT('Não existe nota de número ', @NUM_ALEATORIO)
+	END
+ELSE
+	BEGIN
+		PRINT CONCAT('A nota ', @NUM_ALEATORIO, ' existe')
+	END
+
+-- Consulta
+DECLARE @RESULTADO INT
+SELECT @RESULTADO = [dbo].IsNotaFiscal([dbo].GerarNumAleatorio(10, 1000))
+IF @RESULTADO = 0
+	PRINT 'Não existe nota fiscal.'
+ELSE
+	PRINT 'Existe nota fiscal.'
+```
+
