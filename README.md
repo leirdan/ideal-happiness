@@ -411,7 +411,52 @@ RETURN SELECT * FROM [dbo].[ITENS NOTAS FISCAIS] WHERE [CODIGO DO PRODUTO] = @co
 SELECT * FROM dbo.ListaProdutosPorNota(479745)
 ```
 
-### 6.1 DESAFIO: Criar uma nova nota fiscal com um cliente, vendedor e produtos aleatórios!
+### 6.1 Modificando uma função
+Para modificar uma função usa-se a palavra-chave `ALTER FUNCTION`, similar a outros comandos de alteração do SQL Server. Veja o exemplo abaixo:
+
+Suponha que desejo criar uma função que retorne o endereço completo de todos os meus clientes. Seja esta a função:
+```sql
+CREATE FUNCTION MontarEnderecoCompleto (
+@endereco AS VARCHAR(100),
+@bairro AS VARCHAR(100),
+@cidade AS VARCHAR(50),
+@estado AS VARCHAR(2),
+@cep AS VARCHAR(8)
+)
+RETURNS VARCHAR(200)
+AS
+BEGIN
+	DECLARE @ENDERECOCOMPLETO VARCHAR(200) = CONCAT(@endereco, ' no bairro ', @bairro, ', em ', @cidade, '(', @estado, '), CEP ', @cep)
+	RETURN @ENDERECOCOMPLETO
+END
+```
+
+No entanto, decidi que desejo que não apareçam mais os trechos "no bairro" e "em". Se eu tentar alterar diretamente na instrução `CREATE FUNCTION`, dará um erro pois a função já existe e não pode ser "criada novamente". Assim, deve-se utilizar a instrução `ALTER FUNCTION` da seguinte maneira:
+```sql
+ALTER FUNCTION MontarEnderecoCompleto (
+@endereco AS VARCHAR(100),
+@bairro AS VARCHAR(100),
+@cidade AS VARCHAR(50),
+@estado AS VARCHAR(2),
+@cep AS VARCHAR(8)
+)
+RETURNS VARCHAR(200)
+AS
+BEGIN
+	DECLARE @ENDERECOCOMPLETO VARCHAR(200) = CONCAT(@endereco, ', ', @bairro, ', ', @cidade, '(', @estado, '), CEP ', @cep)
+	RETURN @ENDERECOCOMPLETO
+END
+
+-- Consultando
+SELECT NOME, [dbo].MontarEnderecoCompleto([ENDERECO 1], BAIRRO, CIDADE, ESTADO, CEP) AS ENDEREÇO FROM [TABELA DE CLIENTES]
+-- Exemplo de saída:
+-- R. Dois de Fevereiro, Água Santa, Rio de Janeiro(RJ), CEP 22000000
+```
+
+### 6.2 Deletando uma função
+Para apagar uma função, basta apenas utilizar o comando `DROP FUNCTION <Nome da Função>`.
+
+### 6.3 DESAFIO: Criar uma nova nota fiscal com um cliente, vendedor e produtos aleatórios!
 
 1. *Criar uma função que gere números aleatórios entre um limite mínimo e máximo*
 
