@@ -456,7 +456,7 @@ SELECT NOME, [dbo].MontarEnderecoCompleto([ENDERECO 1], BAIRRO, CIDADE, ESTADO, 
 ### 6.2 Deletando uma função
 Para apagar uma função, basta apenas utilizar o comando `DROP FUNCTION <Nome da Função>`.
 
-### 6.3 DESAFIO: Criar uma nova nota fiscal com um cliente, vendedor e produtos aleatórios!
+### 6.3 DESAFIO: Criar uma consulta que retorne, dentro de um intervalo, o número das notas, se elas existem e seu faturamento.
 
 1. *Criar uma função que gere números aleatórios entre um limite mínimo e máximo*
 
@@ -539,3 +539,32 @@ END
 SELECT DISTINCT * FROM @STATUS_NOTAS ORDER BY NUMERO
 ```
 
+4. *Inclua um novo campo de faturamento na tabela temporária e sua lógica dentro do loop*
+
+```sql
+DECLARE @STATUS_NOTAS TABLE ([NUMERO] INT, [STATUS] VARCHAR(200), [FATURAMENTO] FLOAT) 
+DECLARE @MIN INT, @MAX INT, @RESULTADO INT, @CONDICAO INT, @FATURAMENTO FLOAT
+
+SET @MIN = 0
+SET @MAX = 100000
+
+WHILE @MIN <= @MAX
+BEGIN
+	SELECT @RESULTADO = [dbo].GerarNumAleatorio(@MIN, @MAX)
+	SELECT @CONDICAO = [dbo].IsNotaFiscal(@RESULTADO)
+	SET @MIN = @MIN + 1
+	IF @CONDICAO > 0
+		BEGIN
+			-- Função anteriormente criada
+			SELECT @FATURAMENTO = [dbo].CalcularFaturamento(@RESULTADO)
+			INSERT INTO @STATUS_NOTAS VALUES (@RESULTADO, 'É nota fiscal.', @FATURAMENTO)
+		END
+	ELSE
+		BEGIN
+			INSERT INTO @STATUS_NOTAS VALUES (@RESULTADO, 'Não é nota fiscal.', 0)
+		END
+	CONTINUE
+END
+
+SELECT * FROM @STATUS_NOTAS ORDER BY NUMERO
+```
