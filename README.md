@@ -339,6 +339,7 @@ BEGIN
 	RETURN <Variável de retorno>
 END
 ```
+> Funções podem retornar tabelas ao invés de valores escalares. Para isso, declara-se o tipo de RETURNS como "TABLE" e o RETURN como a operação que retorna a tabela.
 
 Para exemplificar, vamos criar uma função que calcula o faturamento total de uma determinada nota fiscal e ver como podemos utilizar de maneira prática a nossa função:
 * Seja a consulta abaixo a base:
@@ -397,6 +398,18 @@ END
 ```
 
 Executando o comando `SELECT dbo.FaturamentoBairro('Jardins')`, temos como retorno o número *46050253,8327901*, ou seja, o total de vendas naquele bairro durante todo o período.
+
+Agora, um exemplo que retorna uma tabela: função que retorne informações de notas fiscais onde um determinado produto de código qualquer aparece.
+
+```sql
+CREATE FUNCTION ListaProdutosPorNota (@codigo AS INT)
+RETURNS TABLE
+AS
+RETURN SELECT * FROM [dbo].[ITENS NOTAS FISCAIS] WHERE [CODIGO DO PRODUTO] = @codigo
+
+-- Consultando
+SELECT * FROM dbo.ListaProdutosPorNota(479745)
+```
 
 ### 6.1 DESAFIO: Criar uma nova nota fiscal com um cliente, vendedor e produtos aleatórios!
 
