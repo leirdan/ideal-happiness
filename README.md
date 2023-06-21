@@ -795,3 +795,80 @@ CLOSE <Nome do cursor>
 -- o DEALLOCATE acaba completamente com o cursor.
 DEALLOCATE <Nome do cursor>
 ```
+
+### 8.2 EXEMPLOS
+Vejamos um exemplo simples, de imprimir os nomes dos 5 primeiros clientes da base de dados:
+```sql
+DECLARE @NOME NVARCHAR(200)
+
+DECLARE CURSORNOME CURSOR FOR
+	SELECT TOP 5 NOME FROM [TABELA DE CLIENTES]
+
+OPEN CURSORNOME
+-- a variavel nome assume o valor da linha corrente
+FETCH NEXT FROM CURSORNOME INTO @NOME
+-- @@FETCH_STATUS = 0 significa que a consulta ainda não chegou ao fim do cursor
+WHILE @@FETCH_STATUS = 0
+	BEGIN
+		PRINT @NOME
+		FETCH NEXT FROM CURSORNOME INTO @NOME
+	END
+
+	PRINT 'FIM DO CURSOR'
+
+CLOSE CURSORNOME
+
+DEALLOCATE CURSORNOME
+```
+Agora, um exemplo com dois ou mais parâmetros:
+
+```sql
+DECLARE @NOME VARCHAR(200)
+DECLARE @CPF VARCHAR(11)
+
+DECLARE Dados CURSOR FOR
+	SELECT NOME, CPF FROM [TABELA DE CLIENTES]
+
+OPEN Dados
+-- liga a primeira coluna da consulta (nome) com a primeira variável (@nome)
+FETCH NEXT FROM Dados INTO @NOME, @CPF
+WHILE @@FETCH_STATUS = 0
+	BEGIN
+		PRINT @NOME + ', ' + @CPF
+		FETCH NEXT FROM Dados INTO @NOME, @CPF
+	END
+PRINT 'Fim do cursor'
+
+CLOSE Dados
+DEALLOCATE Dados
+```
+Em um exemplo prático, veja como, por meio do cursor, é possível coletar informações de um vendedor aleatório:
+
+```sql
+DECLARE @NUM INT
+DECLARE @INICIO INT
+SET @INICIO = 1
+DECLARE @FINAL INT
+SELECT @FINAL = COUNT(*) FROM [TABELA DE VENDEDORES]
+-- função definida no tópico 06
+SELECT @NUM = dbo.GerarNumAleatorio(@INICIO, @FINAL)
+
+DECLARE @VENDEDOR NVARCHAR(5)
+DECLARE @CONTADOR INT = 1
+DECLARE VendedorCursor CURSOR FOR 
+	SELECT MATRICULA FROM [TABELA DE VENDEDORES]
+
+OPEN VendedorCursor
+FETCH NEXT FROM VendedorCursor INTO @VENDEDOR
+WHILE @CONTADOR < @NUM
+	BEGIN
+		FETCH NEXT FROM VendedorCursor INTO @VENDEDOR
+		SET @CONTADOR = @CONTADOR + 1
+	END
+
+CLOSE VendedorCursor
+
+DEALLOCATE VendedorCursor
+-- seleciona a matrícula do vendedor aleatório
+SELECT @VENDEDOR
+```
