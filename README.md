@@ -762,3 +762,36 @@ Melância	|Frutas não cítricas|	6128144,29499999
 Morango	|Frutas Cítricas|	974442,268800002
 Morango/Limão	|Frutas Cítricas|	1913604,25095
 Uva	|Frutas Cítricas|	798888,796650002
+
+
+## 8. CURSOR
+
+O cursor é um objeto utilizado no T-SQL que permite acessar e manipular linhas de forma *individual*.
+### 8.1 FASES DE UM CURSOR
+#### Declaração
+```sql
+DECLARE <Nome do cursor> CURSOR FOR
+	SELECT <Statement SQL> -- seleção feita para popular o resultado dentro do cursor
+```
+#### Abrindo
+```sql
+-- ao abrir o cursor o SQL Server aloca recursos e prepara a execução do Select do cursor
+OPEN <Nome do cursor>
+```
+#### Percorrendo
+```sql
+-- a instrução fetch lê os dados de cada linha selecionada pelo cursor e que são armazenados em uma variável
+FETCH NEXT FROM <Nome do cursor> INTO <Nome da variável>
+```
+#### Fechando
+```sql
+-- ao fechar um cursor, para utilizar de seus recursos novamente é necessário reexecutá-lo para tal fim; importante sempre fechar o cursor!
+-- o CLOSE elimina tudo do cursor com exceção da sua declaração e seu estado.
+CLOSE <Nome do cursor>
+```
+#### Desalocando
+```sql
+-- aconselhado utilizar para liberar toda a memória que está sendo consumida pela existência do cursor; utilizado após o comando CLOSE.
+-- o DEALLOCATE acaba completamente com o cursor.
+DEALLOCATE <Nome do cursor>
+```
