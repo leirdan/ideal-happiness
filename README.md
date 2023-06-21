@@ -568,3 +568,197 @@ END
 
 SELECT * FROM @STATUS_NOTAS ORDER BY NUMERO
 ```
+
+## 7. STORED PROCEDURES
+Uma *stored procedure*, ou somente *procedure*, é um conjunto de declarações e instruções T-SQL armazenadas no banco de dados e que são executadas de forma *rotineira* (muitas vezes) e *independente* do usuário. Elas podem ser tanto criadas pelo usuário (UDF) ou definidas pelo próprio SQL Server.
+
+A principal diferença entre a procedure e a função é que esta *sempre retorna um valor* (escalar ou tabela), que será armazenado em uma variável (muitas vezes), enquanto aquela *executa um processo que não necessariamente precisa retornar um valor*. Como uma função, entretanto, uma procedure deve ser criada com as seguintes obrigações:
+* Seu corpo deve ser delimitado por um `begin` e `end`;
+* Declarar os _parâmetros_ logo após o nome da procedure;
+* **Pode** ter uma ou mais variáveis de retorno.
+
+Sua sintaxe é:
+
+```sql
+CREATE PROCEDURE <Nome da Procedure> (<Parâmetros>)
+AS
+BEGIN
+	<Instruções T-SQL>
+END
+```
+
+Para exemplificar o uso da procedure, vamos criar um procedimento para que a idade dos clientes seja atualizada periodicamente para não se tornar defasada com o tempo:
+
+```sql
+CREATE PROCEDURE AtualizarIdade 
+AS 
+BEGIN
+	UPDATE [TABELA DE CLIENTES] SET IDADE = DATEDIFF(YEAR, IDADE, GETDATE())
+END
+```
+
+Vamos inserir um novo cliente com a idade errada:
+```sql
+INSERT INTO [TABELA DE CLIENTES] 
+(CPF, NOME, [ENDERECO 1], BAIRRO, CIDADE, ESTADO, CEP, [DATA DE NASCIMENTO], IDADE, SEXO, [LIMITE DE CREDITO], [VOLUME DE COMPRA], [PRIMEIRA COMPRA]) 
+VALUES 
+('58310357266', 'Adam Nergal', 'R. das Amapolas', 'Jardins', 'São Paulo', 'SP', '80012212', '1976-12-06', 13, 'M', 150000, 66600, 1);
+```
+
+Como faço para modificar a idade do cliente de forma automática? Simples: `EXEC [dbo].AtualizarIdade`! Consultando a tabela de clientes percebe-se que sua idade continua incorreta! Isso porque a procedure está errada: não deveria ser calculada a diferença do campo "IDADE" com a data atual, mas sim do campo "DATA DE NASCIMENTO" com a data atual. Para alterar, façamos:
+
+```sql
+ALTER PROCEDURE AtualizarIdade 
+AS 
+BEGIN
+	UPDATE [TABELA DE CLIENTES] SET IDADE = DATEDIFF(YEAR, [DATA DE NASCIMENTO], GETDATE())
+END
+```
+
+Executando a procedure novamente, repare que os valores de idade dos usuários estão todos atualizados agora.
+
+Vejamos um exemplo de uma procedure com parâmetros:
+
+```sql
+CREATE PROCEDURE BuscarNotasCliente @CPF AS VARCHAR(11), @DATA_INICIAL AS DATE
+AS
+BEGIN
+	SELECT * FROM [NOTAS FISCAIS] WHERE CPF = @CPF AND DATA >= @DATA_INICIAL
+END
+```
+
+### 7.1 Passando variáveis como referência para uma procedure
+
+Tenha a procedure *CalcFaturamento* como base:
+
+```sql
+CREATE PROCEDURE CalcFaturamento
+@CPF AS VARCHAR(11), @ANO AS INT, @N_NOTAS AS INT, @FATURAMENTO AS FLOAT
+AS
+BEGIN
+	SELECT @N_NOTAS = COUNT(*) FROM [NOTAS FISCAIS] WHERE CPF = @CPF AND YEAR(DATA) = @ANO
+	SELECT @FATURAMENTO = SUM(INF.QUANTIDADE * INF.PREÇO) FROM [ITENS NOTAS FISCAIS] INF
+	INNER JOIN [NOTAS FISCAIS] NF
+	ON NF.NUMERO = INF.NUMERO
+	WHERE NF.CPF = @CPF AND YEAR(DATA) = @ANO
+END
+```
+
+E também o código abaixo dela como base:
+
+```sql
+-- Inicializo duas variáveis com valor nulo
+DECLARE @N_NOTAS INT
+DECLARE @FATURAMENTO FLOAT
+-- Exibo seus valores (null)
+SELECT @N_NOTAS, @FATURAMENTO
+-- Executo a procedure, onde há modificação de seus valores
+EXEC [dbo].[CalcFaturamento] @CPF='3623344710', @ANO=2016, @N_NOTAS= @N_NOTAS, @FATURAMENTO = @FATURAMENTO
+-- Verifico novamente os valores dessas variáveis
+SELECT @N_NOTAS, @FATURAMENTO
+```
+
+Ao executar o código SQL acima, perceba que as duas consultas retornam duas colunas nulas. Mas por quê?; se as duas variáveis têm seus valores modificados dentro da procedure, elas deveriam ter seus valores alterados fora também! Na verdade *não*. Do jeito que o código está escrito, estamos passando para a procedure o *valor em si* das variáveis (nulo), somente isso. Devemos, para poder verificar seus valores fora da procedure, passar as variáveis como **referência**, indicando que as alterações que a procedure fizer nas variáveis devem ser retornadas para fora. Para isso, insira as palavras `output` nos seguintes trechos:
+
+```sql
+ALTER PROCEDURE CalcFaturamento
+    @CPF AS VARCHAR(11),
+    @ANO AS INT,
+    @N_NOTAS AS INT OUTPUT, -- aqui
+    @FATURAMENTO AS FLOAT OUTPUT -- aqui
+AS 
+BEGIN
+    SELECT @N_NOTAS = COUNT(*) 
+    FROM [NOTAS FISCAIS] 
+    WHERE CPF = @CPF AND YEAR([DATA]) = @ANO
+
+    SELECT @FATURAMENTO = SUM(INF.QUANTIDADE * INF.[PREÇO]) 
+    FROM [ITENS NOTAS FISCAIS] INF
+    INNER JOIN [NOTAS FISCAIS] NF ON INF.NUMERO = NF.NUMERO
+    WHERE NF.CPF = @CPF AND YEAR(NF.[DATA]) = @ANO
+END
+
+-- Inicializo duas variáveis com valor nulo
+DECLARE @N_NOTAS INT
+DECLARE @FATURAMENTO FLOAT
+-- Exibo seus valores (null)
+SELECT @N_NOTAS, @FATURAMENTO
+-- Passe a palavra output nos argumentos que serão passados como referência e terão valores retornados
+EXEC [dbo].[CalcFaturamento] @CPF='3623344710', @ANO=2016, @N_NOTAS=@N_NOTAS OUTPUT, @FATURAMENTO=@FATURAMENTO OUTPUT
+-- Verifico novamente os valores dessas variáveis
+SELECT @N_NOTAS, @FATURAMENTO
+```
+
+Assim, é exibida na consulta o número total de notas geradas no ano para o CPF específico e também a soma de todos os valores. 
+
+Para explicitar:
+* Passar _por valor_: o valor é copiado para uma variável local dentro da procedure, e as operações **não afetam o valor original**;
+* Passar _por referência_: o valor é acessado diretamente pela procedurem e as operações **afetam o valor original**.
+
+### 7.2 DESAFIO: relatório de vendas de produtos por sabor
+Contexto: desejamos obter um relatório com dados de vendas por data dos produtos (sucos), que agora devem ser divididos da seguinte forma:
+
+Sabor | Departamento
+----- | ----
+Açaí | FRUTAS NÃO CÍTRICAS
+Cereja|	FRUTAS NÃO CÍTRICAS
+Cereja/Maça|	FRUTAS NÃO CÍTRICAS
+Laranja	|FRUTAS CÍTRICAS
+Lima/Limão|	FRUTAS CÍTRICAS
+Maça	|FRUTAS NÃO CÍTRICAS
+Manga	|FRUTAS NÃO CÍTRICAS
+Maracujá|	FRUTAS NÃO CÍTRICAS
+Melancia|	FRUTAS NÃO CÍTRICAS
+Morango|	FRUTAS CÍTRICAS
+Morango/Limão|	FRUTAS CÍTRICAS
+Uva|	FRUTAS CÍTRICAS
+
+Entretanto não podemos criar uma nova tabela ou alterar a já existente pois isso causaria uma mudança brusca na estrutura de TI. Então, façamos isso utilizando apenas as *procedures*.
+
+Resposta:
+- Criação da procedure *sp_vendassucos*:
+```sql
+CREATE PROCEDURE sp_vendassucos @SABOR AS VARCHAR(30) OUTPUT, @DEPARTAMENTO AS VARCHAR(50) OUTPUT, @DT_INICIO AS DATE, @DT_FIM AS DATE
+AS
+BEGIN
+	SELECT TP.SABOR,
+	-- Verifica se o sabor está na lista de frutas cítricas ou não
+	(CASE 
+		WHEN TP.SABOR IN ('Laranja', 'Lima/Limão', 'Morango', 'Morango/Limão', 'Uva')
+			THEN 'Frutas Cítricas'
+		ELSE 'Frutas não cítricas' 
+	END) AS DEPARTAMENTO,
+	SUM (INF.QUANTIDADE * INF.PREÇO) AS FATURAMENTO_PERIODO
+	FROM [NOTAS FISCAIS] NF
+	INNER JOIN [ITENS NOTAS FISCAIS] INF
+		ON INF.NUMERO = NF.NUMERO
+	INNER JOIN [TABELA DE PRODUTOS] TP
+		ON TP.[CODIGO DO PRODUTO] = INF.[CODIGO DO PRODUTO]
+	WHERE NF.DATA >= @DT_INICIO AND NF.DATA <= @DT_FIM
+	GROUP BY TP.SABOR
+END
+```
+- Execução da procedure passando variáveis como referência:
+```sql
+DECLARE @SABOR VARCHAR(30)
+DECLARE @DEPARTAMENTO VARCHAR(50)
+
+EXEC [dbo].sp_vendassucos @SABOR=@SABOR OUTPUT, @DEPARTAMENTO=@DEPARTAMENTO OUTPUT, 
+@DT_INICIO='2016-01-01', @DT_FIM='2016-12-31'
+```
+- Resultado:
+
+SABOR | DEPARTAMENTO | FATURAMENTO_PERIODO
+---- | ---- | ----
+Açai|	Frutas não cítricas|	10024014,105
+Cereja|	Frutas não cítricas|	1063754,47709999
+Cereja/Maça|Frutas não cítricas|	4071635,9775
+Laranja	|Frutas Cítricas|	3844934,5452
+Lima/Limão	|Frutas Cítricas|	1508300,3628
+Maça	|Frutas não cítricas|	4321369,73729999
+Manga	|Frutas não cítricas|	5725142,62582499
+Maracujá	|Frutas não cítricas|	1987886,74560001
+Melância	|Frutas não cítricas|	6128144,29499999
+Morango	|Frutas Cítricas|	974442,268800002
+Morango/Limão	|Frutas Cítricas|	1913604,25095
+Uva	|Frutas Cítricas|	798888,796650002
